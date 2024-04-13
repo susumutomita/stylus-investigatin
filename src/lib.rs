@@ -1,41 +1,62 @@
-// Only run this as a WASM if the export-abi feature is not set.
+//!
+//! Stylus Hello World
+//!
+//! The following contract implements the Counter example from Foundry.
+//!
+//! ```
+//! contract Counter {
+//!     uint256 public number;
+//!     function setNumber(uint256 newNumber) public {
+//!         number = newNumber;
+//!     }
+//!     function increment() public {
+//!         number++;
+//!     }
+//! }
+//! ```
+//!
+//! The program is ABI-equivalent with Solidity, which means you can call it from both Solidity and Rust.
+//! To do this, run `cargo stylus export-abi`.
+//!
+//! Note: this code is a template-only and has not been audited.
+//!
+
+// Allow `cargo stylus export-abi` to generate a main function.
 #![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
 
+/// Use an efficient WASM allocator.
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static ALLOC: mini_alloc::MiniAlloc = mini_alloc::MiniAlloc::INIT;
 
-use stylus_sdk::{alloy_primitives::U256, prelude::*, storage::StorageU256};
+/// Import items from the SDK. The prelude contains common traits and macros.
+use stylus_sdk::{alloy_primitives::U256, prelude::*};
 
-/// The solidity_storage macro allows this struct to be used in persistent
-/// storage. It accepts fields that implement the StorageType trait. Built-in
-/// storage types for Solidity ABI primitives are found under
-/// stylus_sdk::storage.
-#[solidity_storage]
-/// The entrypoint macro defines where Stylus execution begins. External methods
-/// are exposed by annotating an impl for this struct with #[external] as seen
-/// below.
-#[entrypoint]
-pub struct Counter {
-    count: StorageU256,
+// Define some persistent storage using the Solidity ABI.
+// `Counter` will be the entrypoint.
+sol_storage! {
+    #[entrypoint]
+    pub struct Counter {
+        uint256 number;
+    }
 }
 
+/// Declare that `Counter` is a contract with the following external methods.
 #[external]
 impl Counter {
     /// Gets the number from storage.
-    pub fn get(&self) -> Result<U256, Vec<u8>> {
-        Ok(self.count.get())
+    pub fn number(&self) -> U256 {
+        self.number.get()
     }
 
-    /// Sets the count in storage to a user-specified value.
-    pub fn set_count(&mut self, count: U256) -> Result<(), Vec<u8>> {
-        self.count.set(count);
-        Ok(())
+    /// Sets a number in storage to a user-specified value.
+    pub fn set_number(&mut self, new_number: U256) {
+        self.number.set(new_number);
     }
 
-    /// Increments count by 1
-    pub fn increment(&mut self) -> Result<(), Vec<u8>> {
-        let count = self.count.get() + U256::from(1);
-        self.set_count(count)
+    /// Increments `number` and updates its value in storage.
+    pub fn increment(&mut self) {
+        let number = self.number.get();
+        self.set_number(number + U256::from(1));
     }
 }
